@@ -134,15 +134,147 @@ fn part_b(input: &str) -> usize {
     paths.len()
 }
 
+#[derive(Debug)]
+struct MapA<'a> {
+    connections: HashMap<&'a str, Vec<&'a str>>,
+}
+
+impl<'a> MapA<'a> {
+    fn parse(input: &'a str) -> Self {
+        let mut connections: HashMap<&str, Vec<&str>> = HashMap::new();
+        for line in input.lines() {
+            let (from, to) = line.split_once('-').unwrap();
+            if to != "start" && from != "end" {
+                let paths = connections.entry(from).or_insert_with(Vec::new);
+                paths.push(to);
+            }
+            if from != "start" && to != "end" {
+                let paths = connections.entry(to).or_insert_with(Vec::new);
+                paths.push(from);
+            }
+        }
+
+        Self { connections }
+    }
+
+    fn visit(&self, cave: &'a str, count: &mut usize, small_caves_visited: &mut Vec<&'a str>) {
+        if cave == "end" {
+            *count += 1;
+            return;
+        }
+        if is_small_cave(cave) {
+            small_caves_visited.push(cave);
+        }
+
+        let available_caves = self.connections.get(cave).unwrap();
+        for path in available_caves.iter() {
+            if is_small_cave(path) && small_caves_visited.contains(path) {
+                continue;
+            }
+            self.visit(path, count, small_caves_visited);
+        }
+
+        small_caves_visited.retain(|c| c != &cave);
+    }
+
+    fn count_paths(&self) -> usize {
+        let mut count = 0;
+        let mut small_caves_visited = vec![];
+        self.visit("start", &mut count, &mut small_caves_visited);
+
+        count
+    }
+}
+
+fn part_a_2(input: &str) -> usize {
+    let map = MapA::parse(input);
+    map.count_paths()
+}
+
+#[derive(Debug)]
+struct MapB<'a> {
+    connections: HashMap<&'a str, Vec<&'a str>>,
+}
+
+impl<'a> MapB<'a> {
+    fn parse(input: &'a str) -> Self {
+        let mut connections: HashMap<&str, Vec<&str>> = HashMap::new();
+        for line in input.lines() {
+            let (from, to) = line.split_once('-').unwrap();
+            if to != "start" && from != "end" {
+                let paths = connections.entry(from).or_insert_with(Vec::new);
+                paths.push(to);
+            }
+            if from != "start" && to != "end" {
+                let paths = connections.entry(to).or_insert_with(Vec::new);
+                paths.push(from);
+            }
+        }
+
+        Self { connections }
+    }
+
+    fn visit(&self, cave: &'a str, count: &mut usize, small_caves_visited: &mut Vec<&'a str>, small_cave_twice: &mut Option<&'a str>) {
+        if cave == "end" {
+            *count += 1;
+            return;
+        }
+
+        if is_small_cave(cave) {
+            if small_caves_visited.contains(&cave) {
+                assert!(small_cave_twice.is_none());
+                *small_cave_twice = Some(cave);
+            } else {
+                small_caves_visited.push(cave);
+            }
+        }
+
+        let available_caves = self.connections.get(cave).unwrap();
+        for path in available_caves.iter() {
+            if small_cave_twice.is_some() && is_small_cave(path) && small_caves_visited.contains(path) {
+                continue;
+            }
+            self.visit(path, count, small_caves_visited, small_cave_twice);
+        }
+
+        if let Some(twice) = small_cave_twice {
+            if twice == &cave {
+                *small_cave_twice = None;
+                return;
+            }
+        }
+
+        small_caves_visited.retain(|c| c != &cave);
+    }
+
+    fn count_paths(&self) -> usize {
+        let mut count = 0;
+        let mut small_caves_visited = vec![];
+        let mut small_cave_twice = None;
+        self.visit("start", &mut count, &mut small_caves_visited, &mut small_cave_twice);
+
+        count
+    }
+}
+
+fn part_b_2(input: &str) -> usize {
+    let map = MapB::parse(input);
+    map.count_paths()
+}
+
 fn main() {
     let input = include_str!("input.txt");
     println!("Day 12 part a: {}", part_a(input));
     println!("Day 12 part b: {}", part_b(input));
+    println!("Day 12 part a2: {}", part_a_2(input));
+    println!("Day 12 part b2: {}", part_b_2(input));
 }
 
 #[test]
 fn test() {
     let input = include_str!("test.txt");
     assert_eq!(part_a(input), 10);
+    assert_eq!(part_a_2(input), 10);
     assert_eq!(part_b(input), 36);
+    assert_eq!(part_b_2(input), 36);
 }
